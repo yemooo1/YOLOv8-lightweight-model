@@ -1,0 +1,42 @@
+# ============================================================
+# 参赛项目依赖清单（成员A / B / C 三人统一环境）
+# 已验证基线环境: Python 3.11.9 + Windows 10/11
+#
+# 安装方法（三人相同）:
+#   python -m venv .venv
+#   .venv\Scripts\activate          # Windows PowerShell
+#   python -m pip install --upgrade pip
+#   pip install -r requirements.txt
+#
+# 安装后自检:
+#   python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+# ============================================================
+
+# --- PyTorch（CUDA 12.6 构建，从 PyTorch 官方索引下载）---
+# 成员A 硬性约束: GTX 1080 Ti 为 Pascal 架构 (sm_61)，
+#   torch>=2.8 的官方 cu128/cu129 构建已移除 sm_61 内核，
+#   运行会报 "no kernel image is available for execution on the device"，
+#   因此三人统一使用 2.7.1+cu126（RTX 3090 / A100 等新卡同样兼容）。
+# 另: 1080 Ti 上 FP16 无加速，所有训练入口必须显式 amp=False。
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch==2.7.1+cu126
+torchvision==0.22.1+cu126
+
+# --- YOLOv8 框架与训练/评测核心（三人版本必须完全一致，保证权重互载与 mAP 可复现）---
+ultralytics==8.4.145
+ultralytics-thop==2.1.6        # 参数量 / FLOPs 统计
+numpy==2.4.6
+opencv-python==5.0.0.93
+pillow==12.3.0
+PyYAML==6.0.3
+pycocotools==2.0.11            # COCO mAP 评测依赖
+matplotlib==3.11.1             # 训练曲线 / 精度-速度帕累托曲线出图
+psutil==7.2.2
+requests==2.34.2
+nvidia-ml-py==13.610.43        # GPU 显存/状态监控（pynvml）
+
+# --- 成员C 部署阶段额外依赖（ONNX 导出 / 量化时再安装，默认注释）---
+# onnx>=1.16.0
+# onnxruntime-gpu>=1.19.0
+# 注意: TensorRT 8.x 无法通过 pip 安装，需按目标设备
+#       （Jetson Xavier NX / 桌面 GPU）从 NVIDIA 官方获取对应版本。
