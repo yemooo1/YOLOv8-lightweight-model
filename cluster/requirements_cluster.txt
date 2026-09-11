@@ -1,0 +1,14 @@
+# ============================================================
+# 学校集群专用依赖（jhinno/pytorch:2.1.0 镜像）
+# 镜像已预装：Python 3.10.12 / torch 2.1.0a0 / torchvision / CUDA 12.x
+#   - 不要重装 torch（探针实测 torch 2.1 + L20 sm_89 完全正常）
+#   - numpy 必须锁 1.26.4：torch 2.1 不兼容 numpy 2.x（否则导入 torch 报错）
+# 用法：
+#   python -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple \
+#       -r cluster/requirements_cluster.txt
+# ============================================================
+
+numpy==1.26.4
+ultralytics==8.4.145
+# COCO 评测加速器（可选；缺失时 ultralytics 回退到 pycocotools，结果一致但慢）
+faster-coco-eval>=1.6

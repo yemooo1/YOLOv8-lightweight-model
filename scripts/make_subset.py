@@ -33,10 +33,14 @@ for _s in (sys.stdout, sys.stderr):
         _s.reconfigure(encoding="utf-8", errors="replace")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-COCO_ROOT = PROJECT_ROOT / "datasets" / "coco"
+DEFAULT_COCO_ROOT = PROJECT_ROOT / "datasets" / "coco"
+COCO_ROOT = DEFAULT_COCO_ROOT
 TRAIN_ANN = COCO_ROOT / "annotations" / "instances_train2017.json"
 VAL_ANN = COCO_ROOT / "annotations" / "instances_val2017.json"
-DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR = PROJECT_ROOT / "data"          # yaml 与 manifest 的输出目录
+LIST_DIR = COCO_ROOT                      # 图片列表 txt 必须放在 path 下：
+                                          # yaml 里的相对路径是相对 `path` 解析的
+                                          # （官方 coco.yaml 也把 train2017.txt 放在这）
 
 
 # --------------------------------------------------------------------------
@@ -55,7 +59,8 @@ def load_annotations(path: Path) -> dict:
 
 def index_annotations(ann: dict):
     """建立索引：图片信息、每图的实例类别、每类的图片与实例统计。"""
-    images = {im["image_id"]: im["file_name"] for im in ann["images"]}
+    # 注意：images 列表用 "id"，而 annotations 里用 "image_id" 指向它
+    images = {im["id"]: im["file_name"] for im in ann["images"]}
     cat_names = {c["id"]: c["name"] for c in ann["categories"]}
 
     # 每张图的实例列表，以及每张图的主类别（实例数最多的类）
@@ -135,6 +140,12 @@ def write_txt(path: Path, image_ids, images, split: str):
 
 
 def write_yaml(path: Path, train_txt: str, val_txt: str, cat_names: dict, note: str):
+    """
+    cat_names 是 {原始 category_id: 名称}（COCO 的 id 是 1..90 有跳号）。
+    YAML 里必须写成 0..79 的稠密索引，否则 Ultralytics 会报
+    "80-class dataset requires class indices 0-79"。
+    索引顺序 = 按 category_id 排序，与转换脚本和官方 coco.yaml 一致。
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         f"# COCO2017 {note}",
@@ -144,16 +155,30 @@ def write_yaml(path: Path, train_txt: str, val_txt: str, cat_names: dict, note: 
         f"val: {val_txt}",
         "names:",
     ]
-    for cid in sorted(cat_names):
-        lines.append(f"  {cid}: {cat_names[cid]}")
+    for idx, cid in enumerate(sorted(cat_names)):
+        lines.append(f"  {idx}: {cat_names[cid]}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main():
     ap = argparse.ArgumentParser(description="COCO2017 分层子集生成")
-    ap.add_argument("--ratios", type=float, nargs="+", default=[0.10, 0.25, 0.50])
+    ap.add_argument("--ratios", type=float, nargs="+", default=[0.10, 0.25, 0.50],
+                    help="抽样比例，1.0 表示全集（tag=sub100）")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--coco-root", type=str, default=None,
+                    help="COCO 数据目录（默认 项目/datasets/coco；集群上指向 jhaidata）")
+    ap.add_argument("--out-dir", type=str, default=None,
+                    help="yaml/CSV 输出目录（默认 项目/data）")
     args = ap.parse_args()
+
+    global COCO_ROOT, TRAIN_ANN, VAL_ANN, DATA_DIR, LIST_DIR
+    if args.coco_root:
+        COCO_ROOT = Path(args.coco_root).resolve()
+        TRAIN_ANN = COCO_ROOT / "annotations" / "instances_train2017.json"
+        VAL_ANN = COCO_ROOT / "annotations" / "instances_val2017.json"
+        LIST_DIR = COCO_ROOT
+    if args.out_dir:
+        DATA_DIR = Path(args.out_dir).resolve()
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -165,7 +190,7 @@ def main():
     val_ann = load_annotations(VAL_ANN)
 
     images, cat_names, primary, inst_per_cat, no_ann = index_annotations(train_ann)
-    val_images = {im["image_id"]: im["file_name"] for im in val_ann["images"]}
+    val_images = {im["id"]: im["file_name"] for im in val_ann["images"]}
     val_per_image = defaultdict(list)
     for a in val_ann["annotations"]:
         val_per_image[a["image_id"]].append(a["category_id"])
@@ -175,7 +200,7 @@ def main():
     print(f"        无标注图片 {len(no_ann)} 张")
 
     # 验证集列表（固定为完整 val2017，所有子集共用）
-    val_txt = DATA_DIR / "val2017.txt"
+    val_txt = LIST_DIR / "val2017.txt"
     write_txt(val_txt, sorted(val_images), val_images, "val2017")
     print(f"  已写 {val_txt.name}: {len(val_images):,} 张")
 
@@ -194,14 +219,14 @@ def main():
         img_cnt, inst_cnt = class_stats(subset_ids, per_image_all, cat_names)
 
         subset_images = {i: images[i] for i in subset_ids}
-        train_txt = DATA_DIR / f"{tag}_train.txt"
+        train_txt = LIST_DIR / f"{tag}_train.txt"
         write_txt(train_txt, subset_ids, subset_images, "train2017")
 
         yaml_path = DATA_DIR / f"coco_{tag}.yaml"
         write_yaml(
             yaml_path,
-            train_txt=f"./{train_txt.name}",
-            val_txt=f"./{val_txt.name}",
+            train_txt=train_txt.name,      # 相对 `path`（= datasets/coco）解析
+            val_txt=val_txt.name,
             cat_names=cat_names,
             note=f"分层子集 {int(ratio*100)}% (seed={args.seed}, {len(subset_ids):,} 张训练图)",
         )

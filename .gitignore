@@ -23,3 +23,7 @@ system_certs.pem
 *.tmp.docx
 参赛方案_备份.docx
 *.log
+
+# --- 集群上传暂存目录 / 调试产物 ---
+cluster_upload/
+cert_dump.txt
