@@ -6,17 +6,6 @@ __pycache__/
 venv/
 env/
 
-# --- 数据集与训练产物（体积大，不入库）---
-datasets/
-data/
-runs/
-weights/
-
-# --- 模型权重（ultralytics 会自动下载）---
-*.pt
-*.onnx
-*.engine
-
 # --- 本地环境 / 临时文件 ---
 .vscode/
 system_certs.pem
