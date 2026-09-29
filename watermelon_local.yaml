@@ -1,0 +1,11 @@
+# 本地西瓜数据集配置（Windows 本地实验用；集群 COCO 实验用 data/coco_sub*.yaml）
+# ultralytics 的 path 相对本 yaml 所在目录解析
+path: datasets/watermelon
+train: images/train
+val: images/valid
+test: images/test
+
+nc: 2
+names:
+  0: ripe      # 成熟
+  1: unripe    # 未成熟
