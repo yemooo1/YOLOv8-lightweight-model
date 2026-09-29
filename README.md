@@ -13,7 +13,8 @@
 
 | 阶段 | 内容 | 负责 | 状态 | 产出 |
 |:---:|------|:---:|:---:|------|
-| **① 基线训练** | YOLOv8-n / YOLOv8-s × COCO 子集 (10%/25%/50%/100%) 共 8 组实验 | A | ✅ 已完成 | 8 个 best.pt + mAP 曲线 |
+| **① 基线训练** | 西瓜集 yolov8n / yolov8s（主线） | A | ✅ 已完成 | 主线基线权重（test mAP50 0.638） |
+| **① 基线训练** | YOLOv8-n / s × COCO 子集 10%/25%/50%/100%（预研线，8 组） | A | ✅ 训练完成，指标待汇总 | 8 个 best.pt + mAP 曲线 |
 | **② 知识蒸馏** | YOLOv8-s（教师）→ YOLOv8-n 学生（西瓜 2 类主线） | B | ✅ 已完成 | 蒸馏后学生权重 |
 | **③ 结构重参数化** | 训练时多分支 → 推理时单分支融合（RepC2f） | B | ✅ 已完成 | 融合部署权重 best_deploy.pt |
 | **④ 部署优化** | ONNX → TensorRT FP16 实测（L40S）；INT8 / 边缘板未做 | C | ✅ 已完成 | FP16 引擎 + 精度/延迟对比数据 |
@@ -175,7 +176,7 @@ bash train_baseline.sh <n|s> <sub10|sub25|sub50|sub100>
 
 ---
 
-## 四、阶段② · 知识蒸馏 🔄
+## 四、阶段② · 知识蒸馏 ✅
 
 ### 4.1 核心思路
 
@@ -205,15 +206,15 @@ bash train_baseline.sh <n|s> <sub10|sub25|sub50|sub100>
 
 ### 4.4 进度追踪
 
-- [ ] 学生网络结构设计（目标 <5M 参数）
-- [ ] 蒸馏损失实现（CWD + KL + 自适应权重）
-- [ ] 教师输出离线缓存脚本
-- [ ] 蒸馏训练脚本（支持本地 amp=False / 集群 amp=True）
-- [ ] 蒸馏训练实验（用阶段①确定的最优子集）
+- [x] 学生网络结构设计（3.01M 参数）
+- [x] 蒸馏损失实现（CWD + KL + 自适应权重，`src/distill/losses.py`）
+- [x] 教师输出离线缓存脚本（`src/distill/cache.py` + `scripts/cache_teacher.py`）
+- [x] 蒸馏训练脚本（本地 / 集群 `amp` 分流）
+- [x] 蒸馏训练实验（西瓜集四组受控实验，test mAP50 **0.665** 超教师 0.639）
 
 ---
 
-## 五、阶段③ · 结构重参数化 ⏳
+## 五、阶段③ · 结构重参数化 ✅
 
 ### 5.1 原理
 
@@ -235,10 +236,14 @@ bash train_baseline.sh <n|s> <sub10|sub25|sub50|sub100>
 
 ### 5.3 进度追踪
 
-- [ ] 定义 reparameterization 模块
-- [ ] 训练路径（带多分支）vs 推理路径（融合后）的代码分离
-- [ ] 验证融合前后权重输出一致性（数值误差 < 1e-5）
-- [ ] 导出 reparameterized.pt
+- [x] 定义 reparameterization 模块（`src/reparam/rep_c2f.py`）
+- [x] 训练路径（多分支）vs 推理路径（融合后）的代码分离
+- [x] 验证融合前后权重输出一致性（逐框 NMS 误差 **0.0**）
+- [x] 导出 reparameterized.pt（`best_deploy.pt` + ONNX）
+
+四组模型在同一批 test 样本上的检测结果对比（教师 / 基线 / 蒸馏 / RepC2f 部署权重）：
+
+![同图检测效果对比](figures/detect_compare.png)
 
 ---
 
@@ -268,6 +273,8 @@ PyTorch (.pt) → ONNX (opset 12) → TensorRT FP16 → （INT8 / 边缘板：�
 | 部署体积 | 11.7 MB (.pt) | **8.3 MB (.engine)** | −29% |
 
 **测试条件**：NVIDIA L40S（Ada, sm_89）、imgsz=640、西瓜 test split 全量 1041 张。引擎与 GPU 架构绑定，仅能在 Ada 卡（L40S / L20）上运行。
+
+![部署前后对比](figures/deploy_summary.png)
 
 ### 6.3 进度追踪
 
