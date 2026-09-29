@@ -12,7 +12,7 @@ DATA_HOME="$(readlink -f "$PORTAL_HOME/jhaidata")"       # 大数据集（20GB C
 
 # ---- 项目布局 ----
 PROJECT_DIR="$UPLOAD_DIR/YOLOv8-lightweight-model"       # zip 解压后的项目目录
-COCO_DIR="$DATA_HOME/coco"                               # COCO 数据根目录
+WATERMELON_DIR="$DATA_HOME/watermelon"                   # 西瓜成熟度数据集根目录
 RUNS_DIR="$UPLOAD_DIR/runs"                              # 所有训练输出
 
 # ---- 运行时环境 ----
@@ -20,16 +20,23 @@ export PATH="$HOME/.local/bin:$PATH"
 export YOLO_CONFIG_DIR="$UPLOAD_DIR/.ultralytics"        # ultralytics 配置持久化
 export YOLO_AUTOINSTALL=False                            # 不自动装包/弹窗
 
+# 本脚本自身所在目录（脚本散放在 jhupload 根目录，不能依赖 PROJECT_DIR）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REQ_FILE="$SCRIPT_DIR/requirements_cluster.txt"
+
 PIP_MIRROR="https://pypi.tuna.tsinghua.edu.cn/simple"
 
 install_python_deps() {
+    if [ ! -f "$REQ_FILE" ]; then
+        echo "⚠ 找不到依赖清单 $REQ_FILE，跳过依赖安装（若已装过 ultralytics 可忽略）"
+        return 0
+    fi
     echo "========== 安装 Python 依赖（集群清单） =========="
-    python -m pip install -i "$PIP_MIRROR" \
-        -r "$PROJECT_DIR/cluster/requirements_cluster.txt"
+    python -m pip install -i "$PIP_MIRROR" -r "$REQ_FILE"
 }
 
-echo "UPLOAD_DIR = $UPLOAD_DIR"
-echo "DATA_HOME  = $DATA_HOME"
-echo "PROJECT_DIR= $PROJECT_DIR"
-echo "COCO_DIR   = $COCO_DIR"
-echo "RUNS_DIR   = $RUNS_DIR"
+echo "UPLOAD_DIR   = $UPLOAD_DIR"
+echo "DATA_HOME    = $DATA_HOME"
+echo "PROJECT_DIR  = $PROJECT_DIR"
+echo "WATERMELON_DIR = $WATERMELON_DIR"
+echo "RUNS_DIR     = $RUNS_DIR"

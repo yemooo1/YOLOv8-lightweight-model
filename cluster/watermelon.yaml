@@ -1,0 +1,10 @@
+# 西瓜成熟度检测数据集（2类：ripe/unripe）
+# 由 job_01_watermelon.sh 解压到 $DATA_HOME/watermelon
+path: /public/home/chenyungui/jhaidata/watermelon
+train: images/train
+val: images/valid
+test: images/test
+names:
+  0: ripe
+  1: unripe
+nc: 2

@@ -16,3 +16,13 @@ system_certs.pem
 # --- 集群上传暂存目录 / 调试产物 ---
 cluster_upload/
 cert_dump.txt
+
+# --- 本地大文件：数据集 / 中间产物 / 压缩包 / 引擎（切勿入库） ---
+datasets/coco/
+data/
+*.zip
+*.engine
+
+# 官方下载的基础权重（需要入库的权重放 weights/ 或 runs/ 下）
+/yolov8*.pt
+/yolo26n.pt
